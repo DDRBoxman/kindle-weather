@@ -1,0 +1,11 @@
+{
+    "items": [
+        {
+        "name": "Kindle Weather",
+        "priority": 0,
+        "items": [
+            {"name": "Launch", "priority": 1, "action": "bin/kindle-weather"}
+        ]
+        }
+    ]
+}  
