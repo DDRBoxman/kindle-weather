@@ -4,8 +4,8 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"image/jpeg"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -13,17 +13,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jasonwinn/noaa"
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
+	forecast "github.com/mlbright/forecast/v2"
 )
 
 func main() {
-	point := noaa.Point{Latitude: 30.2672, Longitude: -97.7431}
-	forecast := point.Forecast(5)
+	renderWeather(fetchWeather())
+}
 
-	forecastDay := forecast.ForecastDays[0]
+func fetchWeather() *forecast.Forecast {
+	keybytes, err := ioutil.ReadFile("api_key.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	key := string(keybytes)
+	key = strings.TrimSpace(key)
 
+	f, err := forecast.Get(key, "30.2672", "-97.7431", "now", forecast.CA)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return f
+}
+
+func renderWeather(forecast *forecast.Forecast) {
 	draw2d.SetFontFolder("./fonts")
 
 	dest := image.NewRGBA(image.Rect(0, 0, 600, 800))
@@ -36,7 +51,7 @@ func main() {
 	gc.SetFontData(draw2d.FontData{
 		Name: "kindleweather",
 	})
-	gc.FillStringAt(getDayFontLetter(forecastDay), 10, 400)
+	gc.FillStringAt(getDayFontLetter(forecast.Daily.Data[0].Icon), 10, 400)
 
 	gc.SetFontSize(32)
 	gc.SetFontData(draw2d.FontData{
@@ -48,16 +63,16 @@ func main() {
 	gc.FillStringAt("Low:", 430, 275)
 
 	gc.SetFontSize(58)
-	hw := gc.FillStringAt(strconv.FormatFloat(forecastDay.MaxTemperature, 'f', -1, 64), 430, 194)
-	lw := gc.FillStringAt(strconv.FormatFloat(forecastDay.MinTemperature, 'f', -1, 64), 430, 343)
+	hw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMin, 'f', 0, 64), 430, 194)
+	lw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMax, 'f', 0, 64), 430, 343)
 
 	gc.SetFontSize(37)
 	gc.FillStringAt("°F", 430+hw, 173)
 	gc.FillStringAt("°F", 430+lw, 322)
 
-	renderDay(gc, 0, forecast.ForecastDays[1], time.Now().Add(time.Hour*24*2).Weekday().String())
-	renderDay(gc, 200, forecast.ForecastDays[2], time.Now().Add(time.Hour*24*2).Weekday().String())
-	renderDay(gc, 400, forecast.ForecastDays[3], time.Now().Add(time.Hour*24*3).Weekday().String())
+	renderDay(gc, 0, forecast.Daily.Data[1], time.Now().Add(time.Hour*24*2).Weekday().String())
+	renderDay(gc, 200, forecast.Daily.Data[2], time.Now().Add(time.Hour*24*2).Weekday().String())
+	renderDay(gc, 400, forecast.Daily.Data[3], time.Now().Add(time.Hour*24*3).Weekday().String())
 
 	gc.SetLineWidth(5)
 	gc.MoveTo(200, 400)
@@ -71,16 +86,19 @@ func main() {
 	gc.FillStroke()
 
 	// Save to file
-	draw2dimg.SaveToPngFile("weather.png", dest)
+	draw2dimg.SaveToPngFile("/tmp/weather.png", dest)
 
 	clearDisplay()
 
 	convertPNGImage()
 
-	showImage("weather.jpg")
+	cmd := exec.Command("./pngcrush", "-bit_depth", "4", "-c", "0", "/tmp/reducedweather.png", "/tmp/reducedweather-crush.png")
+	cmd.Run()
+
+	showImage("/tmp/reducedweather-crush.png")
 }
 
-func renderDay(gc *draw2dimg.GraphicContext, offset float64, forecastDay noaa.ForecastDay, weekday string) {
+func renderDay(gc *draw2dimg.GraphicContext, offset float64, dataPoint forecast.DataPoint, weekday string) {
 	gc.SetFontData(draw2d.FontData{
 		Name: "Roboto",
 	})
@@ -91,8 +109,8 @@ func renderDay(gc *draw2dimg.GraphicContext, offset float64, forecastDay noaa.Fo
 	gc.FillStringAt("Low:", 20+offset, 740)
 
 	gc.SetFontSize(40)
-	hw := gc.FillStringAt(strconv.FormatFloat(forecastDay.MaxTemperature, 'f', -1, 64), 20+offset, 700)
-	lw := gc.FillStringAt(strconv.FormatFloat(forecastDay.MinTemperature, 'f', -1, 64), 20+offset, 790)
+	hw := gc.FillStringAt(strconv.FormatFloat(dataPoint.TemperatureMax, 'f', 0, 64), 20+offset, 700)
+	lw := gc.FillStringAt(strconv.FormatFloat(dataPoint.TemperatureMin, 'f', 0, 64), 20+offset, 790)
 
 	gc.SetFontSize(37)
 	gc.FillStringAt("°F", 20+offset+hw, 700)
@@ -102,11 +120,11 @@ func renderDay(gc *draw2dimg.GraphicContext, offset float64, forecastDay noaa.Fo
 	gc.SetFontData(draw2d.FontData{
 		Name: "kindleweather",
 	})
-	gc.FillStringAt(getDayFontLetter(forecastDay), 20+offset, 600)
+	gc.FillStringAt(getDayFontLetter(dataPoint.Icon), 20+offset, 600)
 }
 
 func convertPNGImage() {
-	pngImgFile, _ := os.Open("./weather.png")
+	pngImgFile, _ := os.Open("/tmp/weather.png")
 	defer pngImgFile.Close()
 
 	imgSrc, _ := png.Decode(pngImgFile)
@@ -121,17 +139,15 @@ func convertPNGImage() {
 	// paste PNG image OVER to newImage
 	draw.Draw(newImg, newImg.Bounds(), imgSrc, imgSrc.Bounds().Min, draw.Over)
 
-	// create new out JPEG file
-	jpgImgFile, _ := os.Create("./weather.jpg")
+	newPNGFile, _ := os.Create("/tmp/reducedweather.png")
+	defer newPNGFile.Close()
 
-	defer jpgImgFile.Close()
+	encoder := png.Encoder{
+		CompressionLevel: png.BestCompression,
+	}
 
-	var opt jpeg.Options
-	opt.Quality = 80
+	encoder.Encode(newPNGFile, newImg)
 
-	// convert newImage to JPEG encoded byte and save to jpgImgFile
-	// with quality = 80
-	jpeg.Encode(jpgImgFile, newImg, &opt)
 }
 
 func clearDisplay() {
@@ -143,19 +159,13 @@ func clearDisplay() {
 }
 
 func showImage(imagePath string) {
-	cmd := exec.Command("eips", "-g", imagePath)
+	cmd := exec.Command("eips", "-f", "-g", imagePath)
 	err := cmd.Run()
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func getDayFontLetter(f noaa.ForecastDay) string {
-	return weatherFontMapping[getDayIconName(f)]
-}
-
-func getDayIconName(f noaa.ForecastDay) string {
-	split := strings.Split(f.SummaryDay["icon"], "/")
-	split = strings.Split(split[len(split)-1], ".")
-	return split[0]
+func getDayFontLetter(icon string) string {
+	return weatherFontMapping[icon]
 }
