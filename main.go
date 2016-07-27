@@ -11,15 +11,28 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
 	forecast "github.com/mlbright/forecast/v2"
+	"github.com/robfig/cron"
 )
 
+var wg sync.WaitGroup
+
 func main() {
+	c := cron.New()
+	c.AddFunc("@every 12h", func() {
+		renderWeather(fetchWeather())
+	})
+	c.Start()
+
 	renderWeather(fetchWeather())
+
+	wg.Add(1)
+	wg.Wait()
 }
 
 func fetchWeather() *forecast.Forecast {
@@ -70,9 +83,9 @@ func renderWeather(forecast *forecast.Forecast) {
 	gc.FillStringAt("°F", 430+hw, 173)
 	gc.FillStringAt("°F", 430+lw, 322)
 
-	renderDay(gc, 0, forecast.Daily.Data[1], time.Now().Add(time.Hour*24*2).Weekday().String())
-	renderDay(gc, 200, forecast.Daily.Data[2], time.Now().Add(time.Hour*24*2).Weekday().String())
-	renderDay(gc, 400, forecast.Daily.Data[3], time.Now().Add(time.Hour*24*3).Weekday().String())
+	renderDay(gc, 0, forecast.Daily.Data[1])
+	renderDay(gc, 200, forecast.Daily.Data[2])
+	renderDay(gc, 400, forecast.Daily.Data[3])
 
 	gc.SetLineWidth(5)
 	gc.MoveTo(200, 400)
@@ -98,12 +111,12 @@ func renderWeather(forecast *forecast.Forecast) {
 	showImage("/tmp/reducedweather-crush.png")
 }
 
-func renderDay(gc *draw2dimg.GraphicContext, offset float64, dataPoint forecast.DataPoint, weekday string) {
+func renderDay(gc *draw2dimg.GraphicContext, offset float64, dataPoint forecast.DataPoint) {
 	gc.SetFontData(draw2d.FontData{
 		Name: "Roboto",
 	})
 	gc.SetFontSize(28)
-	gc.FillStringAt(weekday+":", offset+10, 440)
+	gc.FillStringAt(time.Unix(int64(dataPoint.Time), 0).Weekday().String()+":", offset+10, 440)
 
 	gc.FillStringAt("High:", 20+offset, 650)
 	gc.FillStringAt("Low:", 20+offset, 740)
