@@ -30,7 +30,7 @@ func fetchWeather() *forecast.Forecast {
 	key := string(keybytes)
 	key = strings.TrimSpace(key)
 
-	f, err := forecast.Get(key, "30.2672", "-97.7431", "now", forecast.CA)
+	f, err := forecast.Get(key, "30.2672", "-97.7431", "now", forecast.AUTO)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,8 +63,8 @@ func renderWeather(forecast *forecast.Forecast) {
 	gc.FillStringAt("Low:", 430, 275)
 
 	gc.SetFontSize(58)
-	hw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMin, 'f', 0, 64), 430, 194)
-	lw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMax, 'f', 0, 64), 430, 343)
+	hw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMax, 'f', 0, 64), 430, 194)
+	lw := gc.FillStringAt(strconv.FormatFloat(forecast.Daily.Data[0].TemperatureMin, 'f', 0, 64), 430, 343)
 
 	gc.SetFontSize(37)
 	gc.FillStringAt("°F", 430+hw, 173)
