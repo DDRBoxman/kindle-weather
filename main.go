@@ -24,7 +24,7 @@ var wg sync.WaitGroup
 
 func main() {
 	c := cron.New()
-	c.AddFunc("@every 12h", func() {
+	c.AddFunc("@every 1h", func() {
 		renderWeather(fetchWeather())
 	})
 	c.Start()
@@ -36,6 +36,7 @@ func main() {
 }
 
 func fetchWeather() *forecast.Forecast {
+	log.Println("fetching weather")
 	keybytes, err := ioutil.ReadFile("api_key.txt")
 	if err != nil {
 		log.Fatal(err)
@@ -52,6 +53,7 @@ func fetchWeather() *forecast.Forecast {
 }
 
 func renderWeather(forecast *forecast.Forecast) {
+	log.Println("rendering weather")
 	draw2d.SetFontFolder("./fonts")
 
 	dest := image.NewRGBA(image.Rect(0, 0, 600, 800))
@@ -136,6 +138,7 @@ func renderDay(gc *draw2dimg.GraphicContext, offset float64, dataPoint forecast.
 	gc.FillStringAt(getDayFontLetter(dataPoint.Icon), 20+offset, 600)
 }
 
+// convertPNGImage removes the transparent background on the weather image and makes it white
 func convertPNGImage() {
 	pngImgFile, _ := os.Open("/tmp/weather.png")
 	defer pngImgFile.Close()

@@ -29,7 +29,7 @@ PILLOW_SOFT_DISABLED="no"
 FROM_KUAL="no"
 
 STOP_FRAMEWORK="yes"
-NO_SLEEP="no"
+NO_SLEEP="yes"
 
 # Detect if we were started by KUAL by checking our nice value...
 if [ "$(nice)" == "5" ] ; then
@@ -113,7 +113,7 @@ fi
 if [ "${FROM_KUAL}" == "yes" ] ; then
 	eips_print_bottom_centered "Starting Kindle Weather . . ." 1
 fi
-./kindle-weather > crash.log 2>&1
+./bin/kindle-weather > crash.log 2>&1
 
 # clean up our own process tree in case the reader crashed (if needed, to avoid flooding KUAL's log)
 if pidof reader.lua > /dev/null 2>&1 ; then
