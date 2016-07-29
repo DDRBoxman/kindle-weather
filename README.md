@@ -14,7 +14,7 @@ https://mpetroff.net/2012/09/kindle-weather-display/
 
 Requires an API key from https://developer.forecast.io/
 
-Only tested on kindle touch (k4) other kindles may work, let me know.
+Only tested on [kindle touch (k5)](http://wiki.mobileread.com/wiki/K5_Index) other kindles may work, let me know.
 
 ## How it works
 
